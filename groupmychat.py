@@ -11,6 +11,7 @@
 
 from Queue import Queue,Empty
 from threading import Thread
+from threading import Timer
 from time import sleep
 import socket,sys,errno
 import sys,socket
@@ -51,7 +52,30 @@ BUFLEN = 1000 # Buffer Length
 queue = Queue() # Defining a queue
 sourcePort = int(sys.argv[1]) # Source Port as Entered by the user
 userName = sys.argv[2]
+usernames = []
 # Class Provided by Robert - slightly modified
+
+def kill(username):
+	for p in peerlist:
+		if p.username == username:
+			p.active = False
+
+class User:
+	def __init__(self, username, ip, port, active, timer=None):
+		self.username = username
+		self.ip = ip
+		self.port = port
+		self.active = True
+		self.timer = timer
+
+def removeUser(username):
+	global peerlist
+	userToDelete = None
+	for p in peerlist:
+		if p.username == username:
+			userToDelete = p
+	peerlist.remove(userToDelete)
+
 class Receiver(Thread):
 	def __init__(self, queue):
 		Thread.__init__(self)
@@ -70,18 +94,33 @@ class Receiver(Thread):
 				print("Cannot bind socket to port")
 				sys.exit(1)
 			try:
+				for p in peerlist:
+					p.username, " ", p.active
 				data,addr = s.recvfrom(BUFLEN)
 				if data[:5] == "HELLO" :
 					name = data[5:]
 					if (any(x.isupper() for x in name) and any(x.islower() for x in name)):
 						if "-" in name or "." in name or "_" in name :
-							if ([data[6:],addr[0],addr[1]]) not in peerlist:
-								peerlist.append([data[6:],addr[0],addr[1]])
+							usernames = []
+							for p in peerlist:
+								usernames.append(p.username)
+							if data[6:] in usernames:
+								if (p.username == data[6:]) and (p.ip == addr[0]) and (p.port == addr[1]):
+										p.timer.cancel()
+										p.timer = Timer(15,kill,[p.username])
+										p.timer.start()
+										p.active = True
+							else:
+								# peerlist.append([data[6:],addr[0],addr[1]]) #set userActive True and
+								newuser = User(username=data[6:], ip=addr[0],port=addr[1], active=True, timer=Timer(15,kill,[data[6:]]))
+								peerlist.append(newuser)
+								newuser.timer.start()
 				else:
 					self.queue.put(data)
 			except OSError as err:
 				print("Cannot receive from socket: {}".format(err.strerror))
 				sys.exit(1)
+
 
 class autoSend(Thread):
 	def __init__(self, interval=1):
@@ -91,21 +130,23 @@ class autoSend(Thread):
 	def run(self):
 		i=0
 		while True:
+			for p in peerlist:
+				if(p.active == False):
+					removeUser(p.username)				
 			SendAutoHello()
 			i=(i+1)%100
-			sleep(15)
-
+			sleep(5)
 
 
 # Main Function
 def main():
+	init()
 	startReciever()
 	threading = autoSend(1)
 	threading.daemon = True
 	threading.start()
 	print 'Your Username is: ', userName, '\n'
-	print('p - Prints Received Messages\ns <msg> - Send Message\nq - Quits\n')
-	init()
+	print('p - Prints Received Messages\ns <msg> - Send Message\nl - Outputs a List Of Your Peers That Are Currently Active\nq - Quits\n')
 	cmd = raw_input('& ')
 	t = 0
 	while (cmd[0] != 'q'):
@@ -115,7 +156,8 @@ def main():
 			if(SendMessages(cmd) == False):
 				print("Message Could Not Be Sent, NO ONE ACTIVE CURRENTLY")
 		if (cmd[0] == 'l'):
-			print "PEER LIST: ", peerlist
+			for user in peerlist:
+				print(user.username+" "+user.ip)
 		cmd = raw_input('& ')
 	quitChat()
    
@@ -143,10 +185,10 @@ def SendMessages(cmd):
 		if not peerlist:
 			return False
 
-		for i in range(0,len(peerlist)):
+		for p in peerlist:
 			for j in range(0,len(ports)):
 				if(ports[j]!= sourcePort):
-					s.sendto(cmd[2:], (peerlist[i].__getitem__(1), ports[j]))
+					s.sendto(cmd[2:], (p.ip, ports[j]))
 		return True
 	except:
 		return False
