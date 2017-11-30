@@ -1,11 +1,14 @@
-# Program: mychat.py (python 2)
-# Author: Yash Patel
+# Program: groupmychat.py (python 2)
+# Program By: Lucas Jakober, Yash Patel
 # Description: Program runs as specifications by Robert
-#              To launch the program enter a command as such from linux0: python mychat.py 55000 linux2.cs.uleth.ca 55000
-#              To launch on linux 2: python mychat.py 55000 linux0.cs.uleth.ca 55000
-#              They will connect and you can send messages from one terminal to the other
+#              To launch the program enter a command as such: python groupmychat.py 55000 User_name
+#              The program will then send a "HELLO" User_name to all the define Ip addresses and Ports
+#	           The program will continue to send "HELLO" User_name every 5 seconds
+#			   When a "HELLO" User_name is recieved from a new IP address, it add the IP and User_name to the Peer List
+#			   The timer for each peer in the peer list is updated every time we get a "HELLO" User_name from our Peers
 #              To send a Message: s "MESSAGE HERE"
 #              To print recieved messages: p
+#			   To show your peer list: l
 #              To quit: q (It will also output remaining messages that you have not looked at)
 #              
 
@@ -16,27 +19,19 @@ from time import sleep
 import socket,sys,errno
 import sys,socket
 
-labip = ["142.66.140.14","142.66.140.172","142.66.140.226","142.66.140.227","142.66.140.228","142.66.140.229","142.66.140.230",
-        "142.66.140.231","142.66.140.232","142.66.140.233","142.66.140.234","142.66.140.235",
-        "142.66.140.236","142.66.140.237","142.66.140.238","142.66.140.239","142.66.140.240",
-        "142.66.140.241","142.66.140.242","142.66.140.243","142.66.140.244","142.66.140.245",
-        "142.66.140.246","142.66.140.247","142.66.140.248","142.66.140.249","142.66.140.250",
-        "142.66.140.70","142.66.140.71","142.66.140.72","142.66.140.73","142.66.140.74","142.66.140.75",
-        "142.66.140.76","142.66.140.77","142.66.140.78","142.66.140.79","142.66.140.80","142.66.140.81",
-        "142.66.140.82","142.66.140.83","142.66.140.84","142.66.140.85","142.66.140.86","142.66.140.87",
-        "142.66.140.88","142.66.140.89","142.66.140.90","142.66.140.91","142.66.140.92","142.66.140.93",
-        "142.66.140.94","142.66.140.95","142.66.140.96","142.66.140.97","142.66.140.98"]
-ports = [55000,55001,55002,55003,55004,55005,55006,55007,55008]
-peerlist = []
+def isValidName(username):
+	if not (any(x.isupper() for x in username) and any(x.islower() for x in username)):
+		return False
+	if "-" not in username and "." not in username and "_" not in username :
+		return False
+	return True
 
-# Checks to see if the input has enough 
+# Checks to see if the input has enough arguments Provided 
 if len(sys.argv) != 3:
-	print("Please Enter: {} Source_Port".format(sys.argv[0])) 
+	print("Please Enter: {} Source_Port User_Name".format(sys.argv[0])) 
 	sys.exit(1)
-if not (any(x.isupper() for x in sys.argv[2]) and any(x.islower() for x in sys.argv[2])):
-	print("Username must have an uppercase letter, lowercase letter, and one of - or _ or .") 
-	sys.exit(1)
-if "-" not in sys.argv[2] and "." not in sys.argv[2] and "_" not in sys.argv[2] :
+
+if (isValidName(sys.argv[2]) == False):
 	print("Username must have an uppercase letter, lowercase letter, and one of - or _ or .") 
 	sys.exit(1)
 
@@ -46,20 +41,38 @@ except:
 	print("Cannot Open Socket")
 	sys.exit(1)
 
-
-# GLOBAL VARIABLES
-BUFLEN = 1000 # Buffer Length
-queue = Queue() # Defining a queue
-sourcePort = int(sys.argv[1]) # Source Port as Entered by the user
+# Defining Global Variable Lab IP addresses
+labip = ["142.66.140.21", "142.66.140.22", "142.66.140.23", "142.66.140.24", "142.66.140.25", "142.66.140.26",
+		 "142.66.140.27", "142.66.140.28", "142.66.140.29", "142.66.140.30", "142.66.140.31", "142.66.140.32",
+		 "142.66.140.33", "142.66.140.34", "142.66.140.35", "142.66.140.36", "142.66.140.37", "142.66.140.38",
+		 "142.66.140.39", "142.66.140.40", "142.66.140.41", "142.66.140.42", "142.66.140.43", "142.66.140.44",
+		 "142.66.140.45", "142.66.140.46", "142.66.140.47", "142.66.140.48", "142.66.140.49", "142.66.140.50",
+		 "142.66.140.51", "142.66.140.52", "142.66.140.53", "142.66.140.54", "142.66.140.55", "142.66.140.56",
+		 "142.66.140.57", "142.66.140.58", "142.66.140.59", "142.66.140.60", "142.66.140.61", "142.66.140.62",
+		 "142.66.140.63", "142.66.140.64", "142.66.140.65", "142.66.140.66", "142.66.140.67", "142.66.140.68",
+		 "142.66.140.69", "142.66.140.186", "142.66.140.172"]
+# Defining Global Variables for Ports ranging from 55000-55008
+ports = [55000,55001,55002,55003,55004,55005,55006,55007,55008]
+# Defining a Global Variable for PeerList
+peerlist = []
+# Buffer Length
+BUFLEN = 1000
+# Defining a queue
+queue = Queue()
+ # Source Port as Entered by the user
+sourcePort = int(sys.argv[1])
 userName = sys.argv[2]
-usernames = []
-# Class Provided by Robert - slightly modified
 
+
+
+
+# Function that kills the timer for a peer in the peer list every 5 seconds
 def kill(username):
 	for p in peerlist:
 		if p.username == username:
 			p.active = False
 
+# User class for Peers
 class User:
 	def __init__(self, username, ip, port, active, timer=None):
 		self.username = username
@@ -68,6 +81,7 @@ class User:
 		self.active = True
 		self.timer = timer
 
+# Removes a user from the peer list
 def removeUser(username):
 	global peerlist
 	userToDelete = None
@@ -76,6 +90,7 @@ def removeUser(username):
 			userToDelete = p
 	peerlist.remove(userToDelete)
 
+# Reciever Thread that checks to see if we got any messages seperately from the main function
 class Receiver(Thread):
 	def __init__(self, queue):
 		Thread.__init__(self)
@@ -99,8 +114,7 @@ class Receiver(Thread):
 				data,addr = s.recvfrom(BUFLEN)
 				if data[:5] == "HELLO" :
 					name = data[5:]
-					if (any(x.isupper() for x in name) and any(x.islower() for x in name)):
-						if "-" in name or "." in name or "_" in name :
+					if (isValidName(name) == True):
 							usernames = []
 							for p in peerlist:
 								usernames.append(p.username)
@@ -111,17 +125,19 @@ class Receiver(Thread):
 										p.timer.start()
 										p.active = True
 							else:
-								# peerlist.append([data[6:],addr[0],addr[1]]) #set userActive True and
 								newuser = User(username=data[6:], ip=addr[0],port=addr[1], active=True, timer=Timer(15,kill,[data[6:]]))
 								peerlist.append(newuser)
 								newuser.timer.start()
+				elif data[:4] == "CHAT":
+					self.queue.put(data[4:])
 				else:
 					self.queue.put(data)
 			except OSError as err:
 				print("Cannot receive from socket: {}".format(err.strerror))
 				sys.exit(1)
 
-
+# Another Thread that sends a "HELLO" + User_Name every 5 seconds
+# to update others that we are still active
 class autoSend(Thread):
 	def __init__(self, interval=1):
 		Thread.__init__(self)
@@ -138,13 +154,10 @@ class autoSend(Thread):
 			sleep(5)
 
 
-# Main Function
+# Main Function that checks the inputs from the user
 def main():
 	init()
 	startReciever()
-	threading = autoSend(1)
-	threading.daemon = True
-	threading.start()
 	print 'Your Username is: ', userName, '\n'
 	print('p - Prints Received Messages\ns <msg> - Send Message\nl - Outputs a List Of Your Peers That Are Currently Active\nq - Quits\n')
 	cmd = raw_input('& ')
@@ -153,19 +166,25 @@ def main():
 		if (cmd[0] == 'p'):
 			RecieveMessages()
 		if (cmd[0] == 's'):
+			if(SendMessages("CHAT" + cmd[1:]) == False):
+				print("Message Could Not Be Sent, NO ONE ACTIVE CURRENTLY")
+		if (cmd[:4] == "CHAT"):
 			if(SendMessages(cmd) == False):
 				print("Message Could Not Be Sent, NO ONE ACTIVE CURRENTLY")
-		if (cmd[0] == 'l'):
+		elif (cmd[0] == 'l'):
 			for user in peerlist:
 				print(user.username+" "+user.ip)
 		cmd = raw_input('& ')
 	quitChat()
    
-# Function that Starts the Reciever
+# Function that Starts the Reciever Thread and the autoSend Thread
 def startReciever():
 	receiver = Receiver(queue)
 	receiver.daemon = True
 	receiver.start()
+	threading = autoSend(1)
+	threading.daemon = True
+	threading.start()
 	return True
 
 # Recieves Messages and Prints them to the screen
@@ -184,11 +203,10 @@ def SendMessages(cmd):
 	try:
 		if not peerlist:
 			return False
-
 		for p in peerlist:
 			for j in range(0,len(ports)):
 				if(ports[j]!= sourcePort):
-					s.sendto(cmd[2:], (p.ip, ports[j]))
+					s.sendto(cmd, (p.ip, ports[j]))
 		return True
 	except:
 		return False
